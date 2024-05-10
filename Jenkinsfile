@@ -13,6 +13,14 @@ pipeline {
         // Define Git credentials
         GIT_CREDENTIALS_ID = credentials('github_token')
     }
+
+    stage('Install schemachange') {
+    steps {
+        script {
+            sh 'pip install schemachange'
+            }
+        }
+    }
     
     stages {
         stage('Checkout') {
