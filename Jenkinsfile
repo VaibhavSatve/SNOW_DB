@@ -25,7 +25,7 @@ pipeline {
     stage('Install schemachange') {
         steps {
             script {
-                sh 'pip install schemachange'
+                sh 'pip3 install schemachange'
                 }
             }
         }        
