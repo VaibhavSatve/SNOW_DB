@@ -13,14 +13,6 @@ pipeline {
         // Define Git credentials
         GIT_CREDENTIALS_ID = credentials('github_token')
     }
-
-    stage('Install schemachange') {
-    steps {
-        script {
-            sh 'pip install schemachange'
-            }
-        }
-    }
     
     stages {
         stage('Checkout') {
@@ -30,7 +22,13 @@ pipeline {
                     url: 'https://github.com/VaibhavSatve/SNOW_DB.git'
             }
         }
-        
+    stage('Install schemachange') {
+        steps {
+            script {
+                sh 'pip install schemachange'
+                }
+            }
+        }        
     stage('Deploy to Dev') {
         steps {
             script {                
