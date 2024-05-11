@@ -39,7 +39,7 @@ pipeline {
                     sh "export PATH=${env.PATH_TO_SCHEMACHANGE}:$PATH"
 
                     // Execute schemachange command with the correct root folder
-                    sh "schemachange deploy -f migrations -a \$SNOWFLAKE_ACCOUNT -u \$SNOWFLAKE_USER -r \$SNOWFLAKE_ROLE -w \$SNOWFLAKE_WAREHOUSE -d \$SNOWFLAKE_DATABASE -c \$SNOWFLAKE_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table"
+                    sh "schemachange deploy -f folder_1 -a \$SNOWFLAKE_ACCOUNT -u \$SNOWFLAKE_USER -r \$SNOWFLAKE_ROLE -w \$SNOWFLAKE_WAREHOUSE -d \$SNOWFLAKE_DATABASE -c \$SNOWFLAKE_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table"
                 }
             }
         }
