@@ -1,0 +1,56 @@
+pipeline {
+    agent any
+    
+    environment {
+        // Fetch Snowflake credentials from Parameter Store
+        SNOWFLAKE_ACCOUNT = sh(script: "aws ssm get-parameter --name '/snowflake/account' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        SNOWFLAKE_USER = sh(script: "aws ssm get-parameter --name '/snowflake/username' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        SNOWFLAKE_WAREHOUSE = sh(script: "aws ssm get-parameter --name '/snowflake/warehouse' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        SNOWFLAKE_ROLE = sh(script: "aws ssm get-parameter --name '/snowflake/role' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        SNOWFLAKE_DATABASE = sh(script: "aws ssm get-parameter --name '/snowflake/database' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        
+        // Define Git credentials
+        GIT_CREDENTIALS_ID = credentials('github_token')
+        
+        // Define path to schemachange executable directory
+        PATH_TO_SCHEMACHANGE = '/var/jenkins_home/.local/bin' // Update this path if necessary
+    }
+    
+    stages {
+        stage('Fetch Snowflake Password') {
+            steps {
+                script {
+                    // Fetch Snowflake password from Parameter Store and store it in a temporary file
+                    PASSWORD_FILE = '/tmp/snowflake_password.txt'
+                    sh "aws ssm get-parameter --name '/snowflake/password' --with-decryption --output text --query Parameter.Value > ${env.PASSWORD_FILE}"
+                }
+            }
+        }
+        
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                    credentialsId: GIT_CREDENTIALS_ID,
+                    url: 'https://github.com/VaibhavSatve/SNOW_DB.git'
+            }
+        }
+        stage('Install schemachange') {
+            steps {
+                script {
+                    sh 'pip3 install schemachange'
+                }
+            }
+        }        
+        stage('Deploy to Dev') {
+            steps {
+                script {
+                    // Add the directory containing schemachange to PATH
+                    sh "export PATH=${env.PATH_TO_SCHEMACHANGE}:$PATH"
+                    
+                    // Execute schemachange command with fetched credentials and password from temporary file
+                    sh "schemachange deploy -f migrations -a \$SNOWFLAKE_ACCOUNT -u \$SNOWFLAKE_USER -p \$(cat ${env.PASSWORD_FILE}) -r \$SNOWFLAKE_ROLE -w \$SNOWFLAKE_WAREHOUSE -d \$SNOWFLAKE_DATABASE -c \$SNOWFLAKE_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table"
+                }
+            }
+        }
+    }
+}

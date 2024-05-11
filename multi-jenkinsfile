@@ -1,0 +1,90 @@
+pipeline {
+    agent any
+    
+    environment {
+        SNOWFLAKE_ACCOUNT = sh(script: "aws ssm get-parameter --name '/snowflake/account' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        SNOWFLAKE_USER = sh(script: "aws ssm get-parameter --name '/snowflake/user' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        SNOWFLAKE_WAREHOUSE = sh(script: "aws ssm get-parameter --name '/snowflake/warehouse' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        SNOWFLAKE_ROLE = sh(script: "aws ssm get-parameter --name '/snowflake/role' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        SNOWFLAKE_DATABASE = sh(script: "aws ssm get-parameter --name '/snowflake/database' --with-decryption --output text --query Parameter.Value", returnStdout: true).trim()
+        
+        GIT_CREDENTIALS_ID = credentials('github_token')
+    }
+    
+    stages {
+        stage('Fetch Snowflake Password') {
+            steps {
+                sh 'aws ssm get-parameter --name "/snowflake/password" --with-decryption --output text --query Parameter.Value > snowflake_password.txt'
+            }
+        }
+        
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                credentialsId: GIT_CREDENTIALS_ID,
+                url: 'https://github.com/VaibhavSatve/SNOW_DB.git'
+            }
+        }
+        
+        stage('Install schemachange') {
+            steps {
+                script {
+                    sh 'pip3 install schemachange'
+                }
+            }
+        }   
+
+        stage('Deploy to Dev') {
+            steps {
+                // Add the directory containing schemachange to PATH
+                sh "export PATH=${env.PATH_TO_SCHEMACHANGE}:$PATH"
+
+                // Execute schemachange command with the correct root folder
+                sh "schemachange deploy -f migrations -a $SNOWFLAKE_ACCOUNT -u $SNOWFLAKE_USER -r $SNOWFLAKE_ROLE -w $SNOWFLAKE_WAREHOUSE -d $SNOWFLAKE_DATABASE -c $SNOWFLAKE_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table"
+            }
+            post {
+                success {
+                    input "Deploy to Staging?"
+                }
+                failure {
+                    echo "Dev deployment failed."
+                }
+            }
+        }
+        
+        stage('Deploy to Staging') {
+            when {
+                beforeAgent true
+                expression { currentBuild.result == 'SUCCESS' }
+            }
+            steps {
+                script {
+                    // Add the directory containing schemachange to PATH
+                    sh "export PATH=${env.PATH_TO_SCHEMACHANGE}:$PATH"
+
+                    // Execute schemachange command with the correct root folder
+                    sh "schemachange deploy -f migrations -a $SNOWFLAKE_ACCOUNT -u $SNOWFLAKE_USER -r $SNOWFLAKE_ROLE -w $SNOWFLAKE_WAREHOUSE -d $SNOWFLAKE_DATABASE -c $SNOWFLAKE_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table"
+                }
+            }
+            input {
+                message "Deploy to Production?"
+            }
+        }
+        
+        stage('Deploy to Production') {
+            when {
+                beforeAgent true
+                expression { currentBuild.result == 'SUCCESS' }
+            }
+            steps {
+                script {
+                    // Add the directory containing schemachange to PATH
+                    sh "export PATH=${env.PATH_TO_SCHEMACHANGE}:$PATH"
+
+                    // Execute schemachange command with the correct root folder
+                    sh "schemachange deploy -f migrations -a $SNOWFLAKE_ACCOUNT -u $SNOWFLAKE_USER -r $SNOWFLAKE_ROLE -w $SNOWFLAKE_WAREHOUSE -d $SNOWFLAKE_DATABASE -c $SNOWFLAKE_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table"
+                }
+            }
+        }
+    }
+}
