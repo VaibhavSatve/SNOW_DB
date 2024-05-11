@@ -38,8 +38,8 @@ pipeline {
                     // Add the directory containing schemachange to PATH
                     sh "export PATH=${env.PATH_TO_SCHEMACHANGE}:$PATH"
 
-                    // Execute schemachange command
-                    sh "schemachange -f \$GITHUB_WORKSPACE/migrations -a \$SNOWFLAKE_ACCOUNT -u \$SNOWFLAKE_USER -r \$SNOWFLAKE_ROLE -w \$SNOWFLAKE_WAREHOUSE -d \$SNOWFLAKE_DATABASE -c \$SNOWFLAKE_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table"
+                    // Execute schemachange command with the correct root folder
+                    sh "schemachange deploy -f migrations -a \$SNOWFLAKE_ACCOUNT -u \$SNOWFLAKE_USER -r \$SNOWFLAKE_ROLE -w \$SNOWFLAKE_WAREHOUSE -d \$SNOWFLAKE_DATABASE -c \$SNOWFLAKE_DATABASE.SCHEMACHANGE.CHANGE_HISTORY --create-change-history-table"
                 }
             }
         }
